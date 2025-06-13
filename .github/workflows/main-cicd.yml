@@ -2,9 +2,12 @@ name: Kalkulator CI/CD Pipeline
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - develop
   pull_request:
-    branches: [main]
+    branches:
+      - main
 
 jobs:
   integrate-test-inspect:
@@ -14,15 +17,13 @@ jobs:
       - name: Checkout Kode (Continuous Integration)
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Diperlukan untuk analisis SonarQube yang akurat
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "18" # atau versi LTS terbaru
+          node-version: "18"
 
-      # Langkah Build (jika ada, misal: npm install, npm run build)
-      # Untuk kalkulator statis ini, tidak ada build JS/CSS khusus
       # - name: Build Aplikasi (jika perlu)
       #   run: echo "Tidak ada langkah build spesifik."
 
@@ -45,7 +46,7 @@ jobs:
           restore-keys: ${{ runner.os }}-sonar
 
       - name: Analisis SonarCloud (Continuous Inspection)
-        uses: SonarSource/sonarcloud-github-action@master # Selalu gunakan versi terbaru atau stabil
+        uses: SonarSource/sonarcloud-github-action@master
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -56,7 +57,6 @@ jobs:
             -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
             -Dsonar.sources=.
             -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }}
-            # Jika ada laporan cakupan tes (misal dari Jest LCOV), tambahkan:
             # -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
 
   build-docker-image:
@@ -70,7 +70,6 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Opsional: Login ke Docker Hub jika ingin push image
       # - name: Login ke Docker Hub
       #   if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       #   uses: docker/login-action@v3
@@ -83,9 +82,9 @@ jobs:
         with:
           context: .
           file: ./Dockerfile/Dockerfile
-          push: false # Set 'true' untuk push ke registry (misal Docker Hub)
-          tags: local/kalkulator-cicd:latest # Ganti jika push ke registry
-          # Contoh jika push: ${{ secrets.DOCKERHUB_USERNAME }}/kalkulator-cicd:latest
+          push: false
+          tags: local/kalkulator-cicd:latest
+          # tags: ${{ secrets.DOCKERHUB_USERNAME }}/kalkulator-cicd:latest
 
   deploy-to-github-pages:
     name: Deploy ke GitHub Pages (Continuous Delivery/Deployment)
@@ -93,21 +92,20 @@ jobs:
     needs: integrate-test-inspect
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
-      contents: write # Diperlukan untuk push ke branch gh-pages
+      contents: write
     steps:
       - name: Checkout Kode
         uses: actions/checkout@v4
 
-      # Jika ada langkah build sebelum deploy (misalnya, optimasi aset)
       # - name: Build Halaman Web (jika perlu)
-      #   run: npm install && npm run build-static # Contoh
+      #   run: npm install && npm run build-static
 
       - name: Deploy ke GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./ # Direktori yang akan di-deploy (root untuk kalkulator ini)
-          # publish_branch: gh-pages # Default branch tujuan adalah gh-pages
+          publish_dir: ./
+          # publish_branch: gh-pages
           # user_name: 'github-actions[bot]'
           # user_email: 'github-actions[bot]@users.noreply.github.com'
           # commit_message: 'Deploy kalkulator ke GitHub Pages'
